@@ -10,9 +10,11 @@
   Endpoint wired. Consent wording complete (contact luc.nijs@uni.lu, retention
   3 months). Still outstanding before this is linked from anywhere public:
 
-  0. THIS FILE NEEDS NO MONTHLY EDIT. The topic arrives as ?topic= from the
-     record button on MEBinteractive; that button's link is the one thing that
-     changes each month. See CURRENT_TOPIC in the script block.
+  0. THIS FILE NEEDS NO MONTHLY EDIT, AND NO URL PARAMETERS. It knows nothing
+     about which Bite is running. MEBinteractive names the current Bite in its
+     own text and links here with a plain URL; the upload endpoint files
+     submissions by month (incoming/YYYY-MM/). Which month was which Bite is
+     recorded on the "topics" tab of the index sheet.
 
   1. The consent wording has NOT been reviewed by the University's Data
      Protection Officer. Do that before the page is public.
@@ -134,15 +136,6 @@
   <img class="masthead" id="masthead" src="BEM_MEB_title_web1500.png"
        alt="Music Education Bites — Bachelor in Music Education, University of Luxembourg">
 
-  <!-- ===================== blocked: unknown topic ===================== -->
-  <section id="screenBlocked" class="hidden">
-    <h1>This link isn't quite right</h1>
-    <p>We can't tell which Music Education Bite this message is for, so we can't
-       accept a recording from this link.</p>
-    <p class="small">Please go back to the Music Education Bites page and use the
-       record button there.</p>
-  </section>
-
   <!-- ===================== 1 · intro + consent ======================== -->
   <section id="screenIntro" class="hidden">
     <h1>Tell us what you think</h1>
@@ -232,27 +225,10 @@
   "use strict";
 
   // ---- configuration ----------------------------------------------------------
-
-  // ===========================================================================
-  // LEAVE THIS EMPTY. The topic arrives as ?topic= from the record button on
-  // MEBinteractive, which is the single place it is maintained. With an empty
-  // value the page refuses a visit that carries no topic, which is correct: the
-  // only intended route here is that button.
-  //
-  // Setting it to a YYYY-MM_<slug> would make the bare URL work too — but then
-  // it becomes a second place holding the current topic, and a stale value here
-  // would silently file submissions under the wrong Bite. Don't, unless the
-  // button is removed.
-  // ===========================================================================
-  var CURRENT_TOPIC = "";
+  // The only setting on this page. There is deliberately nothing here about which
+  // Bite is running: see the note at the top of the file.
 
   var ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbwLXeeNnG-7s0ROiVSqwA7y48Kc5KLZHGTYdfJleofZycdzO6TY01hg1VoEWajnZZS94w/exec";
-
-  var SLUGS = [
-    "good-teachers", "research", "well-being", "musical-creativity", "solfege",
-    "inclusion", "technology-and-ai", "role-of-parents",
-    "group-vs-one-to-one", "exams-and-competitions"
-  ];
 
   var LIMITS = {
     voice: { seconds: 90, bytes:  4 * 1024 * 1024, audioBps: 128000 },
@@ -278,23 +254,15 @@
   var $ = function (id) { return document.getElementById(id); };
 
   function show(which) {
-    ["screenBlocked", "screenIntro", "screenRecord", "screenReview", "screenDone"]
+    ["screenIntro", "screenRecord", "screenReview", "screenDone"]
       .forEach(function (id) { $(id).classList.toggle("hidden", id !== which); });
     window.scrollTo(0, 0);
   }
 
-  // ---- topic ----------------------------------------------------------------------
-  // Carried in from ?topic= on the MEBinteractive record button. It is validated and
-  // forwarded with the upload so the submission is filed under the right Bite, but it
-  // is deliberately NOT displayed anywhere: this page must look identical every month
-  // so that nothing on it needs checking when the topic changes. MEBinteractive is
-  // where the visitor is told which Bite they are answering.
-  var topic = new URLSearchParams(location.search).get("topic") || CURRENT_TOPIC;
-  var m = /^(\d{4})-(\d{2})_(.+)$/.exec(topic);
-  if (!m || SLUGS.indexOf(m[3]) === -1) {
-    show("screenBlocked");
-    return;
-  }
+  // ---- no topic anywhere in this page -----------------------------------------------
+  // The page knows nothing about which Bite is running, takes no URL parameters, and
+  // looks identical every month. MEBinteractive names the current Bite in its own text;
+  // the upload endpoint files submissions by month. Nothing here needs maintaining.
   show("screenIntro");
 
   // If the masthead is missing from the deploy folder, drop it rather than
@@ -504,7 +472,6 @@
     reader.onload = function () {
       var b64 = String(reader.result).split(",")[1] || "";
       var payload = JSON.stringify({
-        topic: topic,
         type: kind,
         ref: ref,
         mime: blob.type,
