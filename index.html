@@ -10,6 +10,10 @@
   Endpoint wired. Consent wording complete (contact luc.nijs@uni.lu, retention
   3 months). Still outstanding before this is linked from anywhere public:
 
+  0. THIS FILE NEEDS NO MONTHLY EDIT. The topic arrives as ?topic= from the
+     record button on MEBinteractive; that button's link is the one thing that
+     changes each month. See CURRENT_TOPIC in the script block.
+
   1. The consent wording has NOT been reviewed by the University's Data
      Protection Officer. Do that before the page is public.
   2. The approved wording must be saved as consent_v1.txt in the MEB_interactive
@@ -230,6 +234,20 @@
   "use strict";
 
   // ---- configuration ----------------------------------------------------------
+
+  // ===========================================================================
+  // LEAVE THIS EMPTY. The topic arrives as ?topic= from the record button on
+  // MEBinteractive, which is the single place it is maintained. With an empty
+  // value the page refuses a visit that carries no topic, which is correct: the
+  // only intended route here is that button.
+  //
+  // Setting it to a YYYY-MM_<slug> would make the bare URL work too — but then
+  // it becomes a second place holding the current topic, and a stale value here
+  // would silently file submissions under the wrong Bite. Don't, unless the
+  // button is removed.
+  // ===========================================================================
+  var CURRENT_TOPIC = "";
+
   var ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbwLXeeNnG-7s0ROiVSqwA7y48Kc5KLZHGTYdfJleofZycdzO6TY01hg1VoEWajnZZS94w/exec";
 
   var SLUGS = [
@@ -271,8 +289,12 @@
     return slug.replace(/-/g, " ").replace(/^./, function (c) { return c.toUpperCase(); });
   }
 
-  // ---- topic, from the URL ------------------------------------------------------
-  var topic = new URLSearchParams(location.search).get("topic") || "";
+  // ---- topic ----------------------------------------------------------------------
+  // Normally CURRENT_TOPIC. An explicit ?topic= overrides it, which is useful for
+  // collecting on an older Bite without changing the page. Either way the value is
+  // validated against SLUGS, so a mistyped parameter is refused rather than filed
+  // somewhere nobody will look.
+  var topic = new URLSearchParams(location.search).get("topic") || CURRENT_TOPIC;
   var m = /^(\d{4})-(\d{2})_(.+)$/.exec(topic);
   if (!m || SLUGS.indexOf(m[3]) === -1) {
     show("screenBlocked");
