@@ -145,8 +145,7 @@
 
   <!-- ===================== 1 · intro + consent ======================== -->
   <section id="screenIntro" class="hidden">
-    <h1>Tell us what you think about</h1>
-    <span class="topic" id="topicLabel">—</span>
+    <h1>Tell us what you think</h1>
 
     <p>Record a short message — your voice, or yourself on camera. Voice messages can be
        up to 90 seconds, video up to 60.</p>
@@ -213,7 +212,6 @@
   <!-- ===================== 4 · done =================================== -->
   <section id="screenDone" class="hidden">
     <h1>Thank you — your message has arrived</h1>
-    <p>It's a message about <strong id="doneTopic">—</strong>.</p>
     <p>Your reference code:</p>
     <p class="ref" id="doneRef">—</p>
     <p>Keep this code. If you ever want your recording removed, email
@@ -285,24 +283,18 @@
     window.scrollTo(0, 0);
   }
 
-  function prettyTopic(slug) {
-    return slug.replace(/-/g, " ").replace(/^./, function (c) { return c.toUpperCase(); });
-  }
-
   // ---- topic ----------------------------------------------------------------------
-  // Normally CURRENT_TOPIC. An explicit ?topic= overrides it, which is useful for
-  // collecting on an older Bite without changing the page. Either way the value is
-  // validated against SLUGS, so a mistyped parameter is refused rather than filed
-  // somewhere nobody will look.
+  // Carried in from ?topic= on the MEBinteractive record button. It is validated and
+  // forwarded with the upload so the submission is filed under the right Bite, but it
+  // is deliberately NOT displayed anywhere: this page must look identical every month
+  // so that nothing on it needs checking when the topic changes. MEBinteractive is
+  // where the visitor is told which Bite they are answering.
   var topic = new URLSearchParams(location.search).get("topic") || CURRENT_TOPIC;
   var m = /^(\d{4})-(\d{2})_(.+)$/.exec(topic);
   if (!m || SLUGS.indexOf(m[3]) === -1) {
     show("screenBlocked");
     return;
   }
-  var topicPretty = prettyTopic(m[3]);
-  $("topicLabel").textContent = topicPretty;
-  $("doneTopic").textContent = topicPretty;
   show("screenIntro");
 
   // If the masthead is missing from the deploy folder, drop it rather than
