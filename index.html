@@ -501,7 +501,23 @@
 
     reader.onerror = function () { sendErr("We couldn't read the recording. Please try again."); };
     reader.onload = function () {
-      var b64 = String(reader.result).split(",")[1] || "";
+      // The payload must be cut at ";base64,", NOT at the first comma. A data URL
+      // reads data:<mimetype>;base64,<payload>, and every video mimeType carries
+      // two codecs — "video/mp4;codecs=avc1.42E01E,mp4a.40.2" — so the first
+      // comma falls inside the codec list. Splitting on it sent "mp4a.40.2;base64"
+      // as the recording and the server could not decode it. Voice has one codec,
+      // which is why only video was affected.
+      var dataUrl = String(reader.result);
+      var marker  = ";base64,";
+      var cut     = dataUrl.indexOf(marker);
+      var b64     = cut === -1 ? "" : dataUrl.slice(cut + marker.length);
+
+      // A corrupt payload must never be presented as a sent recording.
+      if (b64.length < (blob.size * 4 / 3) * 0.9) {
+        sendErr("Something went wrong while preparing the recording on this device. "
+              + "Please try recording again.");
+        return;
+      }
       var payload = JSON.stringify({
         type: kind,
         ref: ref,
