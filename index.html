@@ -133,7 +133,7 @@
 <body>
 <div class="wrap">
 
-  <img class="masthead" id="masthead" src="BEM_MEB_title_web1500.png"
+  <img class="masthead" id="masthead" src="{{artifact:art_e8f2696d-8c7e-4d3e-96e7-6ddb8d678df2}}"
        alt="Music Education Bites — Bachelor in Music Education, University of Luxembourg">
 
   <!-- ===================== 1 · intro + consent ======================== -->
@@ -207,6 +207,7 @@
     <h1>Thank you — your message has arrived</h1>
     <p>Your reference code:</p>
     <p class="ref" id="doneRef">—</p>
+    <p class="small" id="doneConfirm"></p>
     <p>Keep this code. If you ever want your recording removed, email
        <a href="mailto:luc.nijs@uni.lu">luc.nijs@uni.lu</a> quoting it and we will delete it.
        You don't need to give a reason.</p>
@@ -229,6 +230,10 @@
   // Bite is running: see the note at the top of the file.
 
   var ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbwLXeeNnG-7s0ROiVSqwA7y48Kc5KLZHGTYdfJleofZycdzO6TY01hg1VoEWajnZZS94w/exec";
+
+  // Sent with every upload and written to the log tab, so a failing device can
+  // be identified from the sheet instead of guessed at.
+  var PAGE_VERSION = "2026-10-30";
 
   var LIMITS = {
     voice: { seconds: 90, bytes:  4 * 1024 * 1024, audioBps: 128000 },
@@ -294,6 +299,29 @@
     return "bin";
   }
 
+  // A coarse browser/platform label for the log. Deliberately not the full
+  // user-agent string: enough to tell Windows Chrome from Android Chrome, and
+  // nothing that helps identify a person.
+  function clientHint() {
+    var ua = navigator.userAgent || "";
+    var os =
+      /Android/i.test(ua)                     ? "Android" :
+      /iPhone|iPad|iPod/i.test(ua)            ? "iOS"     :
+      /Windows/i.test(ua)                     ? "Windows" :
+      /Macintosh|Mac OS X/i.test(ua)          ? "macOS"   :
+      /Linux/i.test(ua)                       ? "Linux"   : "other";
+    var br =
+      /EdgA?\//i.test(ua)                     ? "Edge"    :
+      /SamsungBrowser/i.test(ua)              ? "Samsung" :
+      /FBAN|FBAV|Instagram/i.test(ua)         ? "in-app"  :
+      /OPR\//i.test(ua)                       ? "Opera"   :
+      /Firefox\//i.test(ua)                   ? "Firefox" :
+      /Chrome\//i.test(ua)                     ? "Chrome"  :
+      /Safari\//i.test(ua)                     ? "Safari"  : "other";
+    var m = ua.match(/(?:Chrome|Firefox|Version|EdgA?)\/(\d+)/);
+    return os + " / " + br + (m ? " " + m[1] : "");
+  }
+
   function pickType(list) {
     if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
     for (var i = 0; i < list.length; i++) {
@@ -305,6 +333,8 @@
   // ---- state ----------------------------------------------------------------------
   var stream = null, recorder = null, chunks = [], startedAt = 0, tick = null;
   var kind = null, blob = null, blobUrl = null, elapsed = 0, sending = false;
+  var pending = null, resends = 0;
+  var MAX_RESENDS = 2;
 
   // ---- consent gate ------------------------------------------------------------------
   $("consentBox").onchange = function () {
@@ -459,6 +489,7 @@
     }
 
     sending = true;
+    resends = 0;
     $("btnSend").disabled = true;
     $("sendErr").classList.add("hidden");
     $("progressBar").classList.remove("hidden");
@@ -477,6 +508,9 @@
         mime: blob.type,
         ext: extFor(blob.type),
         duration_s: Math.round(elapsed * 100) / 100,
+        size_bytes: blob.size,
+        client: clientHint(),
+        page_v: PAGE_VERSION,
         consent: true,
         data: b64
       });
@@ -497,28 +531,95 @@
       // with the upload. text/plain is a safelisted content type, so it is
       // permitted in no-cors mode.
       $("progressText").textContent = "Sending… this can take a minute. Please keep this page open.";
-
-      var abort = new AbortController();
-      var timeout = setTimeout(function () { abort.abort(); }, 180000);
-
-      fetch(ENDPOINT_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: payload,
-        signal: abort.signal
-      }).then(function () {
-        clearTimeout(timeout);
-        $("doneRef").textContent = ref;
-        show("screenDone");
-      }).catch(function (e) {
-        clearTimeout(timeout);
-        sendErr(e && e.name === "AbortError"
-          ? "Sending took too long. Please check your connection and try again."
-          : "We couldn't reach the server. Please check your connection and try again.");
-      });
+      // Kept so that an unconfirmed upload can be resent unchanged. The
+      // reference code travels with it, and the endpoint treats a repeat of the
+      // same ref + type + duration as a retry rather than a second message.
+      pending = { payload: payload, ref: ref };
+      transmit();
     };
     reader.readAsDataURL(blob);
+  }
+
+  // ---- transmission -------------------------------------------------------------
+  // The upload is opaque (no-cors), so a resolved promise means only that the
+  // bytes left the browser. Arrival is established afterwards, by confirmArrival.
+  function transmit() {
+    var abort = new AbortController();
+    var timeout = setTimeout(function () { abort.abort(); }, 180000);
+
+    fetch(ENDPOINT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: pending.payload,
+      signal: abort.signal
+    }).then(function () {
+      clearTimeout(timeout);
+      $("doneRef").textContent = pending.ref;
+      $("doneConfirm").textContent = "Checking that it arrived\u2026";
+      show("screenDone");
+      confirmArrival(pending.ref, 0);
+    }).catch(function (e) {
+      clearTimeout(timeout);
+      if (resends < MAX_RESENDS) { resend("the connection dropped"); return; }
+      sendErr(e && e.name === "AbortError"
+        ? "Sending took too long. Please check your connection and try again."
+        : "We couldn't reach the server. Please check your connection and try again.");
+    });
+  }
+
+  function resend(why) {
+    resends++;
+    $("doneConfirm").textContent = "Not through yet (" + why + ") \u2014 sending again\u2026";
+    show("screenDone");
+    setTimeout(transmit, 1500);
+  }
+
+  // ---- arrival confirmation -----------------------------------------------------
+  // Asks the endpoint whether the reference code reached the index sheet. A
+  // <script> tag is used because it is the one cross-origin GET whose reply we
+  // are allowed to read from this domain.
+  var CONFIRM_DELAYS = [2000, 5000, 10000, 20000];
+
+  function confirmArrival(ref, attempt) {
+    if (attempt >= CONFIRM_DELAYS.length) {
+      // Nothing arrived. The upload leg can fail intermittently while the
+      // server is perfectly healthy, so resend the same bytes under the same
+      // reference code before telling the visitor anything is wrong.
+      if (resends < MAX_RESENDS) { resend("it has not reached us"); return; }
+      $("doneConfirm").innerHTML =
+        "<strong>We could not confirm that your message arrived.</strong> It may still be "
+      + "on its way. If you have a moment, please email <a href=\"mailto:luc.nijs@uni.lu\">"
+      + "luc.nijs@uni.lu</a> with the code above and the device you used \u2014 that tells "
+      + "us something went wrong at our end.";
+      return;
+    }
+
+    setTimeout(function () {
+      var cbName = "mebConfirm_" + ref + "_" + attempt;
+      var tag = document.createElement("script");
+      var done = false;
+
+      window[cbName] = function (res) {
+        done = true;
+        cleanUp();
+        if (res && res.found) {
+          $("doneConfirm").textContent = "Confirmed: your message is with us.";
+        } else {
+          confirmArrival(ref, attempt + 1);
+        }
+      };
+
+      function cleanUp() {
+        try { delete window[cbName]; } catch (e) { window[cbName] = undefined; }
+        if (tag.parentNode) tag.parentNode.removeChild(tag);
+      }
+
+      tag.onerror = function () { if (!done) { cleanUp(); confirmArrival(ref, attempt + 1); } };
+      tag.src = ENDPOINT_URL + "?ref=" + encodeURIComponent(ref)
+              + "&callback=" + cbName + "&t=" + Date.now();
+      document.body.appendChild(tag);
+    }, CONFIRM_DELAYS[attempt]);
   }
 
   // ---- wiring ------------------------------------------------------------------------------
