@@ -2,134 +2,179 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Music Education Bites — recorder test</title>
+<title>MEB recorder — device check</title>
+<!--
+  MEB recorder diagnostics. 30 Oct 2026, rebuilt against the current design.
+
+  A maintenance page, not a visitor page. It records locally and reports what
+  the browser produced. It NEVER uploads anything, so nothing here can reach
+  the archive or the index sheet.
+
+  Its reason to exist: on 30 Oct 2026 every video submission was arriving with
+  the recording stripped out, because the page cut the base64 payload at the
+  first comma of the data URL and every video mimeType carries two codecs
+  ("video/mp4;codecs=avc1.42E01E,mp4a.40.2"). The "payload" block below shows
+  both cuts side by side, so that class of failure is visible here without
+  sending a byte.
+-->
 <style>
+
   :root {
     --bg: #000000;
     --fg: #EDEDED;
-    --dim: #8A8A8A;
+    --dim: #8F8F8F;
     --line: #262626;
     --accent: #E8A33D;
     --bad: #D9544D;
-    --ok: #4DA167;
+    --ok: #5FB07C;
   }
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0;
     background: var(--bg); color: var(--fg);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    font-size: 17px; line-height: 1.5;
+    font-size: 17px; line-height: 1.55;
     -webkit-text-size-adjust: 100%;
   }
-  .wrap { max-width: 680px; margin: 0 auto; padding: 32px 20px 80px; }
-  h1 { font-size: 1.45rem; font-weight: 600; letter-spacing: .01em; margin: 0 0 4px; }
-  h2 { font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .12em;
-       color: var(--dim); margin: 40px 0 12px; }
-  .topic { color: var(--accent); font-weight: 600; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 28px 20px 72px; }
+  .masthead { width: 100%; max-width: 420px; display: block; margin: 0 auto 26px; }
+  h1 { font-size: 1.3rem; font-weight: 600; margin: 0 0 6px; letter-spacing: .01em; }
+  .topic {
+    color: var(--accent); font-weight: 600; font-size: 1.3rem;
+    display: block; margin-bottom: 18px;
+  }
   p { margin: 0 0 14px; }
-  .lede { color: var(--dim); font-size: .95rem; }
-  .choices { display: flex; gap: 12px; flex-wrap: wrap; margin: 20px 0 8px; }
+  .small { font-size: .9rem; color: var(--dim); }
+  .consent {
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; margin: 22px 0;
+  }
+  .consent h2 {
+    font-size: .78rem; text-transform: uppercase; letter-spacing: .12em;
+    color: var(--dim); margin: 0 0 10px; font-weight: 600;
+  }
+  .consent p { font-size: .92rem; margin: 0 0 10px; }
+  .consent p:last-of-type { margin-bottom: 0; }
+  .tick {
+    display: flex; gap: 12px; align-items: flex-start;
+    margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .tick input {
+    width: 24px; height: 24px; margin: 1px 0 0; flex: 0 0 auto;
+    accent-color: var(--accent);
+  }
+  .tick span { font-size: .95rem; }
+  .choices { display: flex; gap: 12px; flex-wrap: wrap; margin: 22px 0 8px; }
   button {
     font: inherit; font-weight: 600;
     background: transparent; color: var(--fg);
     border: 1.5px solid var(--fg); border-radius: 999px;
-    padding: 13px 26px; cursor: pointer;
-    min-height: 48px;
+    padding: 14px 28px; cursor: pointer; min-height: 50px;
   }
-  button:disabled { opacity: .35; cursor: default; }
   button.primary { background: var(--fg); color: var(--bg); }
-  button.danger { border-color: var(--bad); color: var(--bad); }
-  .stage { border: 1px solid var(--line); border-radius: 10px; padding: 18px; margin-top: 20px; }
+  button.danger  { border-color: var(--bad); color: var(--bad); }
+  button:disabled { opacity: .3; cursor: default; }
+  /* 9:16 frame — phones fill it; desktop webcams are cropped to it at review,
+     so the frame doubles as a framing guide. */
+  .frame {
+    width: 100%; max-width: 300px; margin: 0 auto;
+    aspect-ratio: 9 / 16; background: #0A0A0A;
+    border-radius: 10px; overflow: hidden; position: relative;
+  }
+  .frame video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .frame.audio { aspect-ratio: auto; max-width: none; background: transparent; }
+  audio { width: 100%; }
+  .timer {
+    font-variant-numeric: tabular-nums; font-size: 2.1rem; font-weight: 600;
+    text-align: center; margin: 18px 0 4px;
+  }
+  .timer::before {
+    content: ""; display: inline-block; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--bad); margin-right: 10px;
+    vertical-align: middle; animation: pulse 1.1s infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .2 } }
+  /* Indeterminate only: real upload progress would require an XHR upload
+     listener, which forces a CORS preflight that Apps Script cannot answer. */
+  .bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 18px; }
+  .bar div {
+    height: 100%; width: 40%; background: var(--accent);
+    animation: slide 1.3s infinite linear;
+  }
+  @keyframes slide {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(250%); }
+  }
+  .ref {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 2.4rem; font-weight: 600; color: var(--accent);
+    letter-spacing: .14em; margin: 10px 0 18px;
+  }
+  .err {
+    color: var(--bad); font-size: .92rem; margin-top: 16px;
+    border-left: 2px solid var(--bad); padding-left: 12px;
+  }
   .hidden { display: none !important; }
-  video.preview, video.playback { width: 100%; background: #0A0A0A; border-radius: 6px; display: block; }
-  audio.playback { width: 100%; margin-top: 6px; }
-  .timer { font-variant-numeric: tabular-nums; font-size: 2rem; font-weight: 600; letter-spacing: .02em; }
-  .timer.rec::before {
-    content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 50%;
-    background: var(--bad); margin-right: 10px; vertical-align: middle;
-    animation: pulse 1.1s infinite;
-  }
-  @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
-  .cap { color: var(--dim); font-size: .85rem; }
-  table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-  td { padding: 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
-  td:first-child { color: var(--dim); width: 44%; padding-right: 14px; }
-  td:last-child { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-                  word-break: break-all; }
-  .yes { color: var(--ok); } .no { color: var(--bad); }
-  .filename { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-              font-size: .9rem; color: var(--accent); word-break: break-all; }
-  .native { margin-top: 10px; }
-  .native label {
-    display: inline-block; border: 1.5px dashed var(--dim); color: var(--dim);
-    border-radius: 999px; padding: 12px 22px; cursor: pointer; font-weight: 600; font-size: .95rem;
-  }
-  .native input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-  .err { color: var(--bad); font-size: .9rem; margin-top: 12px; }
-  hr { border: 0; border-top: 1px solid var(--line); margin: 36px 0 0; }
-  footer { color: var(--dim); font-size: .8rem; margin-top: 28px; }
+  footer { margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--line); }
+  footer p { font-size: .8rem; color: var(--dim); margin: 0 0 6px; }
+  a { color: var(--accent); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  td { padding: 7px 4px; border-bottom: 1px solid #262626; vertical-align: top;
+       font-size: .9rem; }
+  td:first-child { color: var(--dim); width: 42%; }
+  td.v { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem;
+         word-break: break-all; }
+  .good { color: #7bd88f; }
+  .bad  { color: #ff6b6b; }
+  h2 { font-size: .78rem; letter-spacing: .14em; text-transform: uppercase;
+       color: var(--dim); margin: 26px 0 0; font-weight: 600; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <h1>Music Education Bites</h1>
-  <p class="lede">Test page — nothing you record here is uploaded or stored anywhere.
-     This month's Bite: <span class="topic" id="topicLabel">—</span></p>
+  <h1>Device check</h1>
+  <p class="small">Records locally and reports what this browser produced. Nothing is
+     uploaded and nothing reaches the archive — this page cannot send.</p>
 
-  <h2>1 · Record in the browser</h2>
-  <div class="choices">
-    <button id="btnVoice" class="primary">Record a voice message</button>
-    <button id="btnVideo" class="primary">Record a video message</button>
+  <div class="row" style="margin-top:18px">
+    <button id="btnVoice" class="primary">Record voice (90 s)</button>
+    <button id="btnVideo" class="primary">Record video (60 s)</button>
   </div>
-  <p class="cap">Voice up to 90 seconds, video up to 60. Your browser will ask permission first.</p>
-  <div id="recErr" class="err hidden"></div>
+  <div id="err" class="err hidden"></div>
 
-  <div id="stage" class="stage hidden">
-    <video id="preview" class="preview hidden" muted playsinline></video>
+  <section id="screenRecord" class="hidden">
+    <div class="frame" id="previewFrame"><video id="preview" muted playsinline></video></div>
     <p class="timer" id="timer">0:00</p>
-    <div class="choices">
-      <button id="btnStop" class="danger">Stop</button>
-      <button id="btnCancel">Cancel</button>
-    </div>
-  </div>
+    <div class="row"><button id="btnStop" class="danger">Stop</button></div>
+  </section>
 
-  <div id="result" class="stage hidden">
-    <video id="playback" class="playback hidden" controls playsinline></video>
-    <audio id="playbackAudio" class="playback hidden" controls></audio>
-    <h2 style="margin-top:22px">What came out</h2>
-    <table id="resultTable"></table>
-    <p style="margin-top:16px">It would be saved as:</p>
-    <p class="filename" id="filenamePreview">—</p>
-    <div class="choices">
+  <section id="screenResult" class="hidden">
+    <div class="frame" id="playbackFrame"><video id="playback" controls playsinline></video></div>
+    <audio id="playbackAudio" class="hidden" controls></audio>
+
+    <h2>What came out</h2>
+    <table id="tOut"></table>
+
+    <h2>Payload — the cut that broke video</h2>
+    <table id="tPayload"></table>
+
+    <h2>What this browser supports</h2>
+    <table id="tEnv"></table>
+
+    <div class="row" style="margin-top:18px">
       <button id="btnDownload">Download the file</button>
       <button id="btnAgain">Record again</button>
     </div>
-  </div>
+  </section>
 
-  <h2>2 · Or use your phone's own camera / voice recorder</h2>
-  <p class="cap">This route hands recording to the phone itself. If option 1 fails on your
-     device, this is the fallback the real page would use.</p>
-  <div class="native">
-    <label>Record video with the phone
-      <input type="file" accept="video/*" capture="environment" id="nativeVideo">
-    </label>
-    <label>Record / pick audio
-      <input type="file" accept="audio/*" capture id="nativeAudio">
-    </label>
-  </div>
-  <div id="nativeOut" class="stage hidden">
-    <table id="nativeTable"></table>
-  </div>
-
-  <h2>3 · What this browser supports</h2>
-  <table id="diagTable"></table>
-
-  <hr>
   <footer>
-    Test build. No network requests, no storage, no cookies. Close the tab and it is gone.
+    <p>Music Education Bites · device check · not a visitor page</p>
+    <p><a href="./">Back to the recorder</a></p>
   </footer>
 </div>
 
@@ -137,347 +182,208 @@
 (function () {
   "use strict";
 
-  var TZ = "Europe/Luxembourg";
-
-  // Separate caps: an iPhone shoots video at ~9.7 Mbps unless told otherwise,
-  // which would be ~110 MB for 90 s. Ceilings keep the worst case uploadable.
-  var MAX_VOICE_SECONDS = 90;
-  var MAX_VIDEO_SECONDS = 60;
-  var VIDEO_BPS = 2000000;   // 2 Mbps  -> ~15 MB at 60 s
-  var AUDIO_BPS = 128000;    // 128 kbps -> ~1.4 MB at 90 s
-  var MAX_SECONDS = MAX_VOICE_SECONDS;   // set per recording in start()
-
+  var LIMITS = {
+    voice: { seconds: 90, audioBps: 128000 },
+    video: { seconds: 60, audioBps: 128000, videoBps: 2000000 }
+  };
   var VIDEO_TYPES = [
-    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-    'video/mp4',
-    'video/webm;codecs=vp9,opus',
-    'video/webm;codecs=vp8,opus',
-    'video/webm'
+    'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4',
+    'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'
   ];
   var AUDIO_TYPES = [
-    'audio/mp4;codecs=mp4a.40.2',
-    'audio/mp4;codecs=mp4a.40.5',
-    'audio/mp4',
-    'audio/webm;codecs=opus',
-    'audio/webm',
-    'audio/ogg;codecs=opus'
+    'audio/mp4;codecs=mp4a.40.2', 'audio/mp4;codecs=mp4a.40.5', 'audio/mp4',
+    'audio/webm;codecs=opus', 'audio/webm'
   ];
 
   var $ = function (id) { return document.getElementById(id); };
+  var stream = null, recorder = null, chunks = [], startedAt = 0, tick = null;
+  var kind = null, blob = null, blobUrl = null, elapsed = 0;
 
-  // ---- topic from the URL, exactly as the Wix button would pass it -------------
-  var SLUGS = [
-    "good-teachers", "research", "well-being", "musical-creativity", "solfege",
-    "inclusion", "technology-and-ai", "role-of-parents",
-    "group-vs-one-to-one", "exams-and-competitions"
-  ];
-
-  var topicRaw = new URLSearchParams(location.search).get("topic") || "";
-  var topic = topicRaw || "2026-03_musical-creativity";
-  var slugPart = (/^\d{4}-\d{2}_(.+)$/.exec(topic) || [, , ""])[1] || "";
-  var topicOk = SLUGS.indexOf(slugPart) > -1;
-
-  $("topicLabel").innerHTML = prettyTopic(topic)
-    + (!topicRaw
-        ? ' <span class="cap">(default — no ?topic= in the URL)</span>'
-        : topicOk
-          ? ''
-          : ' <span style="color:var(--bad)">— “' + topic
-            + '” is not one of the ten known topics. The real uploader would reject this.</span>');
-
-  function prettyTopic(t) {
-    var m = /^(\d{4})-(\d{2})_(.+)$/.exec(t);
-    var slug = m ? m[3] : t;
-    return slug.replace(/-/g, " ").replace(/^./, function (c) { return c.toUpperCase(); });
+  function show(which) {
+    ["screenRecord", "screenResult"].forEach(function (id) {
+      $(id).classList.toggle("hidden", id !== which);
+    });
   }
-
-  // ---- naming -----------------------------------------------------------------
-  function stamp(d) {
-    var parts = new Intl.DateTimeFormat("en-CA", {
-      timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
-      hour: "2-digit", minute: "2-digit", hour12: false
-    }).formatToParts(d).reduce(function (a, p) { a[p.type] = p.value; return a; }, {});
-    return parts.year + "-" + parts.month + "-" + parts.day + "_" + parts.hour + parts.minute;
+  function row(t, label, value, cls) {
+    var tr = t.insertRow();
+    tr.insertCell().textContent = label;
+    var c = tr.insertCell();
+    c.className = "v" + (cls ? " " + cls : "");
+    c.textContent = value;
   }
-
-  function shortId() {
-    var a = new Uint8Array(2);
-    (window.crypto || window.msCrypto).getRandomValues(a);
-    return Array.prototype.map.call(a, function (b) {
-      return ("0" + b.toString(16)).slice(-2);
-    }).join("");
+  function supported(list) {
+    if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return [];
+    return list.filter(function (t) { return MediaRecorder.isTypeSupported(t); });
   }
+  function pickType(list) { return supported(list)[0] || ""; }
 
   function extFor(mime) {
     var base = (mime || "").split(";")[0].toLowerCase();
     if (base === "video/mp4") return "mp4";
     if (base === "audio/mp4") return "m4a";
-    if (base === "video/quicktime") return "mov";
-    if (base === "video/webm") return "webm";
-    if (base === "audio/webm") return "webm";
-    if (base === "audio/ogg" || base === "video/ogg") return "ogg";
-    if (base === "audio/mpeg") return "mp3";
-    if (base === "audio/wav" || base === "audio/x-wav") return "wav";
-    var slash = base.indexOf("/");
-    return slash > -1 ? base.slice(slash + 1) : "bin";
+    if (base === "video/webm" || base === "audio/webm") return "webm";
+    if (base === "video/x-matroska") return "mkv";
+    if (base === "audio/ogg") return "ogg";
+    return "bin";
   }
 
-  // An MP4 container holding Opus is legal but QuickTime and Safari refuse it.
-  function compatNote(mime) {
-    var m = (mime || "").toLowerCase();
-    var isMp4 = m.indexOf("mp4") === 0 || m.indexOf("/mp4") > -1;
-    if (isMp4 && m.indexOf("opus") > -1) {
-      return '<span class="no">no — Opus inside MP4; QuickTime will refuse it</span>';
-    }
-    if (isMp4) return '<span class="yes">yes — MP4/AAC</span>';
-    if (m.indexOf("webm") > -1) {
-      return '<span class="no">no — webm needs VLC or conversion</span>';
-    }
-    return "unknown";
-  }
-
-  function buildName(kind, mime, when) {
-    return "MEB_" + kind + "_" + stamp(when) + "_" + shortId() + "." + extFor(mime);
-  }
-
-  // ---- in-browser recording ----------------------------------------------------
-  var stream = null, recorder = null, chunks = [], startedAt = 0, tick = null, mode = null, blobUrl = null;
-
-  function pickType(list) {
-    if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
-    for (var i = 0; i < list.length; i++) {
-      if (MediaRecorder.isTypeSupported(list[i])) return list[i];
-    }
-    return "";
-  }
-
-  function showErr(msg) {
-    var el = $("recErr");
-    el.textContent = msg;
-    el.classList.remove("hidden");
-  }
-
-  function clearErr() { $("recErr").classList.add("hidden"); }
+  function fail(msg) { $("err").textContent = msg; $("err").classList.remove("hidden"); }
 
   async function start(which) {
-    clearErr();
-    mode = which;
-    if (!window.isSecureContext) {
-      showErr("This page is not in a secure context (https or localhost), so the browser will not "
-            + "grant microphone or camera access. Serve it over https and try again.");
+    $("err").classList.add("hidden");
+    kind = which;
+    if (!window.isSecureContext || !navigator.mediaDevices || !window.MediaRecorder) {
+      fail("This browser will not let a web page record audio or video.");
       return;
     }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      showErr("navigator.mediaDevices.getUserMedia is not available in this document. "
-            + "On an embedded page this usually means the iframe lacks allow=\"camera; microphone\".");
-      return;
-    }
-    if (!window.MediaRecorder) {
-      showErr("MediaRecorder is not supported by this browser. Use option 2 below.");
-      return;
-    }
-
     var constraints = which === "video"
-      ? { audio: true, video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } }
+      ? { audio: true, video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 1280 } } }
       : { audio: true };
-
     try {
       stream = await navigator.mediaDevices.getUserMedia(constraints);
     } catch (e) {
-      showErr(e.name + ": " + e.message
-        + (e.name === "NotAllowedError"
-            ? "  —  permission was refused, or a permissions policy blocked it."
-            : ""));
+      fail("Could not start recording (" + e.name + ").");
       return;
     }
 
+    var lim = LIMITS[which];
     var mime = pickType(which === "video" ? VIDEO_TYPES : AUDIO_TYPES);
-    MAX_SECONDS = which === "video" ? MAX_VIDEO_SECONDS : MAX_VOICE_SECONDS;
-    chunks = [];
-    var opts = { audioBitsPerSecond: AUDIO_BPS };
-    if (which === "video") opts.videoBitsPerSecond = VIDEO_BPS;
+    var opts = { audioBitsPerSecond: lim.audioBps };
+    if (which === "video") opts.videoBitsPerSecond = lim.videoBps;
     if (mime) opts.mimeType = mime;
-    try {
-      recorder = new MediaRecorder(stream, opts);
-    } catch (e) {
-      showErr("MediaRecorder could not be created: " + e.message);
-      stopTracks();
-      return;
-    }
+
+    chunks = [];
+    try { recorder = new MediaRecorder(stream, opts); }
+    catch (e) { fail("MediaRecorder refused these options on this browser."); stopTracks(); return; }
 
     recorder.ondataavailable = function (ev) { if (ev.data && ev.data.size) chunks.push(ev.data); };
     recorder.onstop = finish;
 
-    if (which === "video") {
-      var pv = $("preview");
-      pv.srcObject = stream;
-      pv.classList.remove("hidden");
-      pv.play().catch(function () {});
-    }
+    $("previewFrame").classList.toggle("hidden", which !== "video");
+    if (which === "video") { $("preview").srcObject = stream; $("preview").play().catch(function () {}); }
 
-    $("stage").classList.remove("hidden");
-    $("result").classList.add("hidden");
-    $("btnVoice").disabled = true;
-    $("btnVideo").disabled = true;
-
+    show("screenRecord");
     recorder.start();
     startedAt = Date.now();
-    tick = setInterval(updateTimer, 200);
-    updateTimer();
+    tick = setInterval(function () {
+      var s = Math.floor((Date.now() - startedAt) / 1000);
+      $("timer").textContent = Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2);
+      if (s >= LIMITS[kind].seconds) stop();
+    }, 200);
   }
 
-  function updateTimer() {
-    var s = Math.floor((Date.now() - startedAt) / 1000);
-    var left = MAX_SECONDS - s;
-    var t = $("timer");
-    t.classList.add("rec");
-    t.textContent = Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2)
-                  + (left <= 15 ? "   " + left + "s left" : "");
-    if (s >= MAX_SECONDS) stop();
-  }
-
-  function stop() {
-    if (recorder && recorder.state !== "inactive") recorder.stop();
-    if (tick) { clearInterval(tick); tick = null; }
-    $("timer").classList.remove("rec");
-  }
-
+  function stop() { if (recorder && recorder.state !== "inactive") recorder.stop(); }
   function stopTracks() {
     if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
-    var pv = $("preview");
-    pv.srcObject = null;
-    pv.classList.add("hidden");
-  }
-
-  function cancel() {
-    if (recorder && recorder.state !== "inactive") {
-      recorder.onstop = function () { stopTracks(); };
-      recorder.stop();
-    } else { stopTracks(); }
-    if (tick) { clearInterval(tick); tick = null; }
-    chunks = [];
-    $("stage").classList.add("hidden");
-    $("btnVoice").disabled = false;
-    $("btnVideo").disabled = false;
   }
 
   function finish() {
-    var elapsed = (Date.now() - startedAt) / 1000;
+    clearInterval(tick);
+    elapsed = (Date.now() - startedAt) / 1000;
     var mime = recorder.mimeType || (chunks[0] && chunks[0].type) || "";
-    var blob = new Blob(chunks, { type: mime });
+    blob = new Blob(chunks, { type: mime });
     stopTracks();
-    $("stage").classList.add("hidden");
-    $("btnVoice").disabled = false;
-    $("btnVideo").disabled = false;
 
     if (blobUrl) URL.revokeObjectURL(blobUrl);
     blobUrl = URL.createObjectURL(blob);
 
-    var name = buildName(mode, mime, new Date());
-    $("filenamePreview").textContent = "incoming/" + topic + "/" + name;
-
-    var vp = $("playback"), ap = $("playbackAudio");
-    vp.classList.add("hidden"); ap.classList.add("hidden");
-    var player = mode === "video" ? vp : ap;
+    var isVideo = kind === "video";
+    $("playbackFrame").classList.toggle("hidden", !isVideo);
+    $("playbackAudio").classList.toggle("hidden", isVideo);
+    var player = isVideo ? $("playback") : $("playbackAudio");
     player.src = blobUrl;
-    player.classList.remove("hidden");
 
-    // The container-duration check: webm from MediaRecorder commonly reports Infinity.
+    report(mime, player);
+    show("screenResult");
+  }
+
+  function report(mime, player) {
+    var ext = extFor(mime);
+    var cap = LIMITS[kind].seconds;
+    var kbps = elapsed > 0 ? Math.round(blob.size * 8 / elapsed / 1000) : 0;
+
+    var t = $("tOut"); t.innerHTML = "";
+    row(t, "Recorded as (mimeType)", mime || "(the browser reported nothing)",
+        mime ? null : "bad");
+    row(t, "Extension chosen", "." + ext, ext === "bin" ? "bad" : null);
+    row(t, "Size", (blob.size / 1048576).toFixed(2) + " MB (" + blob.size + " bytes)");
+    row(t, "Measured length", elapsed.toFixed(2) + " s");
+    row(t, "Length per the file itself", "reading\u2026");
+    row(t, "Bitrate (approx.)", kbps + " kbps");
+    row(t, "Projected at the " + cap + "s limit",
+        ((blob.size / Math.max(elapsed, 0.01)) * cap / 1048576).toFixed(1) + " MB");
+
+    var durCell = t.rows[4].cells[1];
     player.onloadedmetadata = function () {
-      renderResult(blob, mime, elapsed, player.duration, name);
+      var d = player.duration;
+      durCell.textContent = isFinite(d) ? d.toFixed(2) + " s"
+                                       : "not reported (Infinity) \u2014 the page's own timer is used";
+      if (!isFinite(d)) durCell.className = "v bad";
     };
-    renderResult(blob, mime, elapsed, NaN, name);
 
-    $("result").classList.remove("hidden");
-    $("btnDownload").onclick = function () {
-      var a = document.createElement("a");
-      a.href = blobUrl; a.download = name;
-      document.body.appendChild(a); a.click(); a.remove();
+    // The payload check.
+    var reader = new FileReader();
+    reader.onload = function () {
+      var url = String(reader.result);
+      var marker = ";base64,";
+      var cut = url.indexOf(marker);
+      var correct = cut === -1 ? "" : url.slice(cut + marker.length);
+      var naive = url.split(",")[1] || "";
+      var expected = Math.ceil(blob.size * 4 / 3);
+
+      var p = $("tPayload"); p.innerHTML = "";
+      row(p, "Data URL header", url.slice(0, Math.max(cut + marker.length, 0)) || "(none found)");
+      row(p, "Payload cut at \";base64,\" (what the page does)",
+          correct.length + " chars", correct.length >= expected * 0.9 ? "good" : "bad");
+      row(p, "Payload cut at the first comma (the old bug)",
+          naive.length + " chars" + (naive.length < 64 ? " \u2014 \"" + naive + "\"" : ""),
+          naive.length >= expected * 0.9 ? "good" : "bad");
+      row(p, "Expected for this file (size \u00d7 4/3)", expected + " chars");
+      row(p, "Verdict",
+          correct.length >= expected * 0.9
+            ? "intact \u2014 this device would upload correctly"
+            : "CORRUPT \u2014 the recording would arrive empty",
+          correct.length >= expected * 0.9 ? "good" : "bad");
     };
+    reader.readAsDataURL(blob);
+
+    environment();
   }
 
-  function renderResult(blob, mime, elapsed, containerDur, name) {
-    var durTxt;
-    if (!isFinite(containerDur)) {
-      durTxt = (isNaN(containerDur) ? "reading…" : "Infinity")
-             + (isNaN(containerDur) ? "" : "  ← known webm/MediaRecorder issue");
-    } else {
-      durTxt = containerDur.toFixed(2) + " s";
-    }
-    rows($("resultTable"), [
-      ["Recorded as (mimeType)", mime || "(browser default, unreported)"],
-      ["Extension chosen", "." + extFor(mime)],
-      ["Opens by double-click on a Mac", compatNote(mime)],
-      ["Size", (blob.size / 1048576).toFixed(2) + " MB"],
-      ["Measured length", elapsed.toFixed(1) + " s"],
-      ["Length per the file itself", durTxt],
-      ["Bitrate (approx.)", elapsed > 0 ? ((blob.size * 8 / elapsed) / 1000).toFixed(0) + " kbps" : "—"],
-      ["Projected at the " + MAX_SECONDS + "s limit",
-        elapsed > 0 ? ((blob.size / elapsed) * MAX_SECONDS / 1048576).toFixed(1) + " MB" : "—"],
-      ["Filename", name]
-    ]);
-  }
-
-  // ---- native capture route -----------------------------------------------------
-  function handleNative(input, kind) {
-    var f = input.files && input.files[0];
-    if (!f) return;
-    var name = buildName(kind, f.type, new Date(f.lastModified || Date.now()));
-    rows($("nativeTable"), [
-      ["Came back as", f.type || "(no type reported)"],
-      ["Original filename", f.name],
-      ["Size", (f.size / 1048576).toFixed(2) + " MB"],
-      ["Would be saved as", "incoming/" + topic + "/" + name]
-    ]);
-    $("nativeOut").classList.remove("hidden");
-  }
-
-  // ---- diagnostics ----------------------------------------------------------------
-  function yesno(b) { return b ? '<span class="yes">yes</span>' : '<span class="no">no</span>'; }
-
-  function rows(table, data) {
-    table.innerHTML = data.map(function (r) {
-      return "<tr><td>" + r[0] + "</td><td>" + r[1] + "</td></tr>";
-    }).join("");
-  }
-
-  function diagnostics() {
-    var mr = !!window.MediaRecorder;
-    var supported = [];
-    if (mr && MediaRecorder.isTypeSupported) {
-      VIDEO_TYPES.concat(AUDIO_TYPES).forEach(function (t) {
-        if (MediaRecorder.isTypeSupported(t)) supported.push(t);
-      });
-    }
-    rows($("diagTable"), [
-      ["Browser", navigator.userAgent],
-      ["Page origin", location.origin + (location.protocol === "file:" ? "  (file://)" : "")],
-      ["Secure context", yesno(window.isSecureContext)],
-      ["Inside an iframe", (window.top !== window.self)
-        ? '<span class="no">yes — camera/mic are likely to be blocked</span>'
-        : '<span class="yes">no — top-level document, nothing in the way</span>'],
-      ["mediaDevices.getUserMedia", yesno(!!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia))],
-      ["MediaRecorder", yesno(mr)],
-      ["Recording formats offered", supported.length ? supported.join("<br>") : "<span class='no'>none</span>"],
-      ["Preferred for video", pickType(VIDEO_TYPES) || "<span class='no'>none</span>"],
-      ["Preferred for audio", pickType(AUDIO_TYPES) || "<span class='no'>none</span>"],
-      ["Timezone used for names", TZ],
-      ["Example name, right now", "MEB_voice_" + stamp(new Date()) + "_" + shortId() + ".m4a"]
-    ]);
+  function environment() {
+    var t = $("tEnv"); t.innerHTML = "";
+    row(t, "Browser", navigator.userAgent);
+    row(t, "Page origin", location.origin);
+    row(t, "Secure context", window.isSecureContext ? "yes" : "no",
+        window.isSecureContext ? "good" : "bad");
+    row(t, "Inside an iframe",
+        window.top !== window.self ? "yes \u2014 recording may be blocked"
+                                   : "no \u2014 top-level document",
+        window.top !== window.self ? "bad" : "good");
+    row(t, "mediaDevices.getUserMedia",
+        (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) ? "yes" : "no");
+    row(t, "MediaRecorder", window.MediaRecorder ? "yes" : "no");
+    row(t, "Video formats offered", supported(VIDEO_TYPES).join("\n") || "none");
+    row(t, "Audio formats offered", supported(AUDIO_TYPES).join("\n") || "none");
+    row(t, "Preferred for video", pickType(VIDEO_TYPES) || "none");
+    row(t, "Preferred for audio", pickType(AUDIO_TYPES) || "none");
+    var now = new Date();
+    row(t, "Timezone used for names", "Europe/Luxembourg (server clock decides)");
+    row(t, "Browser timezone", Intl.DateTimeFormat().resolvedOptions().timeZone);
+    row(t, "Browser time now", now.toString());
   }
 
   $("btnVoice").onclick = function () { start("voice"); };
   $("btnVideo").onclick = function () { start("video"); };
-  $("btnStop").onclick = stop;
-  $("btnCancel").onclick = cancel;
-  $("btnAgain").onclick = function () {
-    $("result").classList.add("hidden");
-    clearErr();
+  $("btnStop").onclick  = stop;
+  $("btnAgain").onclick = function () { show(""); $("err").classList.add("hidden"); };
+  $("btnDownload").onclick = function () {
+    if (!blob) return;
+    var a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = "MEB_devicecheck_" + kind + "." + extFor(blob.type);
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
-  $("nativeVideo").onchange = function () { handleNative(this, "video"); };
-  $("nativeAudio").onchange = function () { handleNative(this, "voice"); };
-
-  diagnostics();
 })();
 </script>
 </body>
